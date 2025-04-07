@@ -4,7 +4,7 @@ from statsmodels.tsa.holtwinters import ExponentialSmoothing
 import numpy as np
 from scipy.stats import norm
 
-df = pd.read_csv('daily_means_mauna_loa_apr6.csv')
+df = pd.read_csv('daily_means_mauna_loa_apr7.csv')
                  
 df['Date'] = pd.to_datetime(df[['Year', 'Month', 'Day']])
 df.index = pd.DatetimeIndex(df['Date'])
@@ -65,29 +65,50 @@ print(fit.summary())
 
 forecast = fit.forecast(30)
 
-month_of_april_data_known = df[df["Year"] == 2025][df["Month"] == 4]
-month_of_april_data_known = month_of_april_data_known["CO2"].values
-april_forecast = forecast[forecast.index.month == 4].values
-month_of_april_data = np.concatenate((month_of_april_data_known, april_forecast))
-print("April 2025 CO2 Average: ", month_of_april_data.mean())
+observed_april  = df[(df.index.year == 2025) & (df.index.month == 4)]['CO2']
+forecast_april = forecast[forecast.index.month == 4]
 
-def compute_mean_confidence_interval(data, sigma, confidence=0.95):
-    mean = np.mean(data)
-    n = len(data)
-    std_err = sigma / np.sqrt(n)
+last_obs_date = observed_april.index.max()  
+forecast_horizons = (forecast_april.index - last_obs_date).days
+
+overall_mean = (observed_april.sum() + forecast_april.sum()) / (len(observed_april) + len(forecast_april))
+print("April 2025 CO2 Average: ", overall_mean)
+
+def compute_mean_confidence_interval_forecast(observed, forecast, forecast_horizons, sigma, confidence=0.95):
+
+    n_total = len(observed) + len(forecast)
+    overall_mean = (np.sum(observed) + np.sum(forecast)) / n_total
+    # Only forecasted values contribute uncertainty.
+    # Total variance is sigma^2 times the sum of forecast horizons.
+    total_variance = sigma**2 * np.sum(forecast_horizons)
+    se_mean = np.sqrt(total_variance) / n_total
     z = norm.ppf(1 - (1 - confidence) / 2)
-    margin_of_error = z * std_err
-    return mean - margin_of_error, mean + margin_of_error
-print(f"95% Confidence Interval for April 2025 CO2 Average: {compute_mean_confidence_interval(month_of_april_data, fit.resid.std(), confidence=0.95)}")
-print(f"99% Confidence Interval for April 2025 CO2 Average: {compute_mean_confidence_interval(month_of_april_data, fit.resid.std(), confidence=0.99)}")
+    margin = z * se_mean
+    return overall_mean - margin, overall_mean + margin
+
+residual_std = fit.resid.std()
+
+ci_95 = compute_mean_confidence_interval_forecast(observed_april.values, 
+                                                  forecast_april.values, 
+                                                  forecast_horizons.values, 
+                                                  residual_std, 
+                                                  confidence=0.95)
+ci_99 = compute_mean_confidence_interval_forecast(observed_april.values, 
+                                                  forecast_april.values, 
+                                                  forecast_horizons.values, 
+                                                  residual_std, 
+                                                  confidence=0.99)
+
+print(f"95% Confidence Interval for April 2025 CO2 Average: {ci_95}")
+print(f"99% Confidence Interval for April 2025 CO2 Average: {ci_99}")
     
 
 # plot prediction
-plot_forecast(forecast, fit)
+#plot_forecast(forecast, fit)
 
 # Plot residuals
-plot_residuals(fit)
+#plot_residuals(fit)
 
 
 one_year_forecast = fit.forecast(365)
-plot_forecast(one_year_forecast, fit, lookback_days=365*3)
+#plot_forecast(one_year_forecast, fit, lookback_days=365*3)
