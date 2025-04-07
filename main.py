@@ -19,7 +19,7 @@ model = ExponentialSmoothing(
     seasonal_periods=365
 )
 
-def plot_forecast(forecast,fit, lookback_days=365, confidence_interval=0.95):
+def plot_forecast(forecast,fit, lookback_days=365, confidence_interval=0.95, save_name=None):
     residual_std = fit.resid.std()
     z = norm.ppf(1 - (1 - confidence_interval) / 2)
     # For each forecast step h (starting at 1), the standard error is sigma * sqrt(h)
@@ -38,9 +38,12 @@ def plot_forecast(forecast,fit, lookback_days=365, confidence_interval=0.95):
     plt.ylabel('CO₂ (ppm)')
     plt.title('CO₂ Forecast for the Next 30 Days using Holt-Winters Exponential Smoothing')
     plt.legend()
+    if save_name:
+        plt.savefig(save_name)
+        print(f"Plot saved as {save_name}")
     plt.show()
-    
-def plot_residuals(fit):
+
+def plot_residuals(fit, save_name=None):
     # Plot of residuals with a histogram
     residuals = fit.resid
     plt.figure(figsize=(12, 6))
@@ -56,6 +59,10 @@ def plot_residuals(fit):
 
     plt.ylabel('Density')
     plt.tight_layout()
+    if save_name:
+        plt.savefig(save_name)
+        print(f"Plot saved as {save_name}")
+
     plt.show()
 
 
@@ -103,12 +110,13 @@ print(f"95% Confidence Interval for April 2025 CO2 Average: {ci_95}")
 print(f"99% Confidence Interval for April 2025 CO2 Average: {ci_99}")
     
 
-# plot prediction
-#plot_forecast(forecast, fit)
+# plot prediction and save to Charts/pred_30d_forecast.png
+plot_forecast(forecast, fit, save_name='Charts/pred_30d_forecast.png')
 
-# Plot residuals
-#plot_residuals(fit)
+# Plot residuals and save to Charts/pred_residuals.png
+plot_residuals(fit, save_name='Charts/pred_residuals.png')
 
 
 one_year_forecast = fit.forecast(365)
-#plot_forecast(one_year_forecast, fit, lookback_days=365*3)
+# Plot the one-year forecast and save to Charts/pred_1y_forecast.png
+plot_forecast(one_year_forecast, fit, lookback_days=365*3, save_name='Charts/pred_1y_forecast.png')
